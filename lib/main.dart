@@ -642,13 +642,13 @@ class WatchlistTableCard extends StatelessWidget {
               children: [
                 const DataHeader(
                   cells: ['종목명', '현재가', '등락률', '상태', '감시 사유'],
-                  flexes: [26, 15, 11, 14, 34],
+                  flexes: [23, 20, 13, 20, 34],
                   alignments: [
                     Alignment.center,
                     Alignment.center,
                     Alignment.center,
                     Alignment.center,
-                    Alignment.centerLeft,
+                    Alignment.center,
                   ],
                 ),
                 ...items.map(
@@ -670,7 +670,7 @@ class WatchlistTableCard extends StatelessWidget {
                       ),
                     );
 
-                    // 감시사유: reasons_ko 최대 3개 줄바꿈, 없으면 watchReasonText fallback
+                    // 감시사유: reasons_ko 최대 3개, 없으면 watchReasonText fallback
                     final reasonLines = item.reasonsKo.isNotEmpty
                         ? item.reasonsKo.take(3).toList()
                         : (item.watchReasonText.isNotEmpty
@@ -679,33 +679,30 @@ class WatchlistTableCard extends StatelessWidget {
                     final reasonWidget = reasonLines.isEmpty
                         ? PlainText(item.stageStatus.isNotEmpty ? item.stageStatus : '-')
                         : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: reasonLines
-                                .map((r) => Text(r, style: const TextStyle(color: AppColors.textMain, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))
+                                .map((r) => Text(r, style: const TextStyle(color: AppColors.textMain, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center))
                                 .toList(),
                           );
 
                     return Container(
                       color: isSell ? const Color(0xFFFF6B35).withOpacity(0.04) : null,
                       child: DataRowLine(
-                        flexes: const [26, 15, 11, 14, 34],
+                        flexes: const [23, 20, 13, 20, 34],
                         alignments: const [
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
-                          Alignment.centerLeft,
+                          Alignment.center,
                         ],
                         cells: [
                           NameText(item.name, item.symbol),
                           PlainText(price(item.currentPrice)),
                           isSell ? PercentText(item.pnlPct) : PercentText(item.changePct),
                           Center(child: statusBadge),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: reasonWidget,
-                          ),
+                          Center(child: reasonWidget),
                         ],
                       ),
                     );
