@@ -641,61 +641,70 @@ class WatchlistTableCard extends StatelessWidget {
           : Column(
               children: [
                 const DataHeader(
-                  cells: ['종목명', '현재가', '등락률', '감시 사유'],
-                  flexes: [28, 16, 12, 32],
+                  cells: ['종목명', '현재가', '등락률', '상태', '감시 사유'],
+                  flexes: [26, 15, 11, 14, 34],
                   alignments: [
                     Alignment.center,
                     Alignment.center,
                     Alignment.center,
                     Alignment.center,
+                    Alignment.centerLeft,
                   ],
                 ),
                 ...items.map(
                   (item) {
-                    final sellBadge = item.isSellWatch
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            margin: const EdgeInsets.only(left: 4),
-                            decoration: BoxDecoration(
-                              color: Color(0xFFFF6B35).withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFFFF6B35), width: 0.7),
-                            ),
-                            child: const Text('매도감시', style: TextStyle(fontSize: 9, color: Color(0xFFFF6B35))),
-                          )
-                        : const SizedBox.shrink();
-                    final nameCell = Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(child: NameText(item.name, item.symbol)),
-                        sellBadge,
-                      ],
+                    // 상태 뱃지
+                    final bool isSell = item.isSellWatch;
+                    final statusLabel = isSell ? '매도대기' : '매수대기';
+                    final statusColor = isSell ? const Color(0xFFFF6B35) : const Color(0xFF4CAF50);
+                    final statusBadge = Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.13),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: statusColor, width: 0.7),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(fontSize: 9, color: statusColor, fontWeight: FontWeight.w600),
+                      ),
                     );
-                    final _baseReason = item.watchReasonText.isNotEmpty
-                        ? item.watchReasonText
-                        : (item.isSellWatch ? '매도감시' : item.stageStatus);
-                    final reasonText = item.isSellWatch && item.pnlPct != 0.0
-                        ? '$_baseReason (${item.pnlPct >= 0 ? "+" : ""}${item.pnlPct.toStringAsFixed(2)}%)'
-                        : _baseReason;
+
+                    // 감시사유: reasons_ko 최대 3개 줄바꿈, 없으면 watchReasonText fallback
+                    final reasonLines = item.reasonsKo.isNotEmpty
+                        ? item.reasonsKo.take(3).toList()
+                        : (item.watchReasonText.isNotEmpty
+                            ? item.watchReasonText.split(', ').take(3).toList()
+                            : <String>[]);
+                    final reasonWidget = reasonLines.isEmpty
+                        ? PlainText(item.stageStatus.isNotEmpty ? item.stageStatus : '-')
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: reasonLines
+                                .map((r) => Text(r, style: const TextStyle(color: AppColors.textMain, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis))
+                                .toList(),
+                          );
+
                     return Container(
-                      color: item.isSellWatch ? Color(0xFFFF6B35).withOpacity(0.04) : null,
+                      color: isSell ? const Color(0xFFFF6B35).withOpacity(0.04) : null,
                       child: DataRowLine(
-                        flexes: const [28, 16, 12, 32],
+                        flexes: const [26, 15, 11, 14, 34],
                         alignments: const [
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
+                          Alignment.centerLeft,
                         ],
                         cells: [
-                          nameCell,
+                          NameText(item.name, item.symbol),
                           PlainText(price(item.currentPrice)),
-                          item.isSellWatch
-                              ? PercentText(item.pnlPct)
-                              : PercentText(item.changePct),
+                          isSell ? PercentText(item.pnlPct) : PercentText(item.changePct),
+                          Center(child: statusBadge),
                           Padding(
-                            padding: const EdgeInsets.only(left: 10),
-                            child: PlainText(reasonText, maxLines: 2),
+                            padding: const EdgeInsets.only(left: 6),
+                            child: reasonWidget,
                           ),
                         ],
                       ),
