@@ -642,7 +642,7 @@ class WatchlistTableCard extends StatelessWidget {
               children: [
                 const DataHeader(
                   cells: ['종목명', '현재가', '등락률', '상태', '감시 사유'],
-                  flexes: [23, 20, 13, 20, 34],
+                  flexes: [25, 22, 13, 17, 34],
                   alignments: [
                     Alignment.center,
                     Alignment.center,
@@ -689,7 +689,7 @@ class WatchlistTableCard extends StatelessWidget {
                     return Container(
                       color: isSell ? const Color(0xFFFF6B35).withOpacity(0.04) : null,
                       child: DataRowLine(
-                        flexes: const [23, 20, 13, 20, 34],
+                        flexes: const [25, 22, 13, 17, 34],
                         alignments: const [
                           Alignment.center,
                           Alignment.center,
