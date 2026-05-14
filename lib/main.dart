@@ -1157,14 +1157,17 @@ class AutoMoneyText extends StatelessWidget {
   final double value;
 
   @override
-  Widget build(BuildContext context) => AutoSizeText(
-    signedNumber(value),
-    minFontSize: 9,
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    textAlign: TextAlign.center,
-    style: TextStyle(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
-  );
+  Widget build(BuildContext context) {
+    final base = DefaultTextStyle.of(context).style;
+    return AutoSizeText(
+      signedNumber(value),
+      minFontSize: 9,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: base.copyWith(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
+    );
+  }
 }
 
 class AutoPercentText extends StatelessWidget {
@@ -1172,14 +1175,17 @@ class AutoPercentText extends StatelessWidget {
   final double value;
 
   @override
-  Widget build(BuildContext context) => AutoSizeText(
-    signedPct(value),
-    minFontSize: 9,
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    textAlign: TextAlign.center,
-    style: TextStyle(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
-  );
+  Widget build(BuildContext context) {
+    final base = DefaultTextStyle.of(context).style;
+    return AutoSizeText(
+      signedPct(value),
+      minFontSize: 9,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: base.copyWith(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
+    );
+  }
 }
 
 class PlainText extends StatelessWidget {
@@ -1349,7 +1355,7 @@ String signedWon(double value) => '${value >= 0 ? '+' : ''}${won(value)}';
 String signedNumber(double value) =>
     '${value >= 0 ? '+' : ''}${wonFormat.format(value.round())}';
 String signedPct(double value) =>
-    '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
+    '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}';
 
 String chartDateLabel(DailyPnlSnapshot item) {
   final parsed = DateTime.tryParse(item.date);
