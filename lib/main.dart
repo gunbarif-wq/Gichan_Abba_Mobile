@@ -117,7 +117,7 @@ class _DashboardContentState extends State<DashboardContent> {
     final refDate = DateTime.tryParse(snapshot.generatedAt) ?? DateTime.now();
     final recentDates = _lastNTradingDayDates(refDate, 5);
     final closedTrades = snapshot.recentTrades.where((trade) {
-      if (trade.sellAmount <= 0 || trade.buyAmount <= 0) return false;
+      if (trade.buyAmount <= 0 && trade.sellAmount <= 0) return false;
       final parsed = DateTime.tryParse(trade.time);
       if (parsed == null) return false;
       return recentDates.contains(DateFormat('yyyy-MM-dd').format(parsed));
@@ -724,9 +724,9 @@ class RecentClosedTradesCard extends StatelessWidget {
   final bool expanded;
   final VoidCallback? onToggle;
 
-  static const _flexes = [22, 7, 14, 14, 15, 10];
+  static const _flexes = [24, 7, 15, 15, 15, 10];
   static const _aligns = [
-    Alignment.center,
+    Alignment.centerLeft,
     Alignment.center,
     Alignment.center,
     Alignment.center,
@@ -766,20 +766,18 @@ class RecentClosedTradesCard extends StatelessWidget {
                   flexes: _flexes,
                   alignments: _aligns,
                 ),
-                ...trades.map(
-                  (trade) => DataRowLine(
-                    flexes: _flexes,
-                    alignments: _aligns,
-                    cells: [
-                      AutoNameText(trade.name),
-                      AutoCellText('${trade.quantity}'),
-                      AutoCellText(price(trade.buyAmount)),
-                      AutoCellText(price(trade.sellAmount)),
-                      AutoMoneyText(trade.realizedPnl),
-                      AutoPercentText(trade.realizedPnlPct),
-                    ],
-                  ),
-                ),
+                ..._mergeTrades(trades).map((m) => DataRowLine(
+                  flexes: _flexes,
+                  alignments: _aligns,
+                  cells: [
+                    AutoNameText(m.name),
+                    AutoCellText('${m.quantity}'),
+                    m.buyAmount > 0 ? AutoCellText(price(m.buyAmount)) : const AutoCellText('-'),
+                    m.sellAmount > 0 ? AutoCellText(price(m.sellAmount)) : const AutoCellText('-'),
+                    m.sellAmount > 0 ? AutoMoneyText(m.realizedPnl) : const AutoCellText('-'),
+                    m.sellAmount > 0 ? AutoPercentText(m.realizedPnlPct) : const AutoCellText('-'),
+                  ],
+                )),
               ],
             ),
     );
@@ -1386,6 +1384,56 @@ String formatTradingTime(String value) {
   final parsed = DateTime.tryParse(value);
   if (parsed == null) return value.isEmpty ? '-' : value;
   return DateFormat('M/d HH:mm').format(parsed);
+}
+
+class _MergedTrade {
+  String symbol;
+  String name;
+  int quantity;
+  double buyAmount;
+  double sellAmount;
+  double realizedPnl;
+  double realizedPnlPct;
+
+  _MergedTrade({
+    required this.symbol,
+    required this.name,
+    required this.quantity,
+    this.buyAmount = 0,
+    this.sellAmount = 0,
+    this.realizedPnl = 0,
+    this.realizedPnlPct = 0,
+  });
+}
+
+List<_MergedTrade> _mergeTrades(List<TradeSnapshot> trades) {
+  final Map<String, _MergedTrade> map = {};
+  for (final t in trades) {
+    final m = map.putIfAbsent(
+      t.symbol,
+      () => _MergedTrade(symbol: t.symbol, name: t.name, quantity: t.quantity),
+    );
+    if (t.buyAmount > 0) {
+      m.buyAmount = t.buyAmount;
+      m.quantity = t.quantity;
+      m.name = t.name;
+    }
+    if (t.sellAmount > 0) {
+      m.sellAmount = t.sellAmount;
+      m.realizedPnl = t.realizedPnl;
+      m.realizedPnlPct = t.realizedPnlPct;
+      if (m.quantity == 0) m.quantity = t.quantity;
+      if (m.name.isEmpty) m.name = t.name;
+    }
+    // 단일 레코드에 양쪽 다 있는 경우 (완결 거래)
+    if (t.buyAmount > 0 && t.sellAmount > 0) {
+      m.buyAmount = t.buyAmount;
+      m.sellAmount = t.sellAmount;
+      m.realizedPnl = t.realizedPnl;
+      m.realizedPnlPct = t.realizedPnlPct;
+    }
+  }
+  return map.values.toList();
 }
 
 Set<String> _lastNTradingDayDates(DateTime ref, int n) {

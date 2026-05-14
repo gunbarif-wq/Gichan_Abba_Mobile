@@ -221,6 +221,7 @@ class TradeSnapshot {
     required this.realizedPnl,
     required this.realizedPnlPct,
     required this.tradingCost,
+    this.side = '',
   });
 
   final String time;
@@ -232,6 +233,10 @@ class TradeSnapshot {
   final double realizedPnl;
   final double realizedPnlPct;
   final double tradingCost;
+  final String side; // 'buy' | 'sell' | ''
+
+  bool get isBuyOnly => buyAmount > 0 && sellAmount <= 0;
+  bool get isSellOnly => sellAmount > 0 && buyAmount <= 0;
 
   factory TradeSnapshot.fromJson(Map<String, dynamic> json) => TradeSnapshot(
     time: json['time']?.toString() ?? '',
@@ -243,6 +248,7 @@ class TradeSnapshot {
     realizedPnl: asDouble(json['realized_pnl']),
     realizedPnlPct: asDouble(json['realized_pnl_pct']),
     tradingCost: asDouble(json['trading_cost']),
+    side: (json['side'] ?? '').toString(),
   );
 }
 
