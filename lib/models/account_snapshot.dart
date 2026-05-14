@@ -113,6 +113,7 @@ class PositionSnapshot {
     required this.unrealizedPnl,
     required this.unrealizedPnlPct,
     required this.holdingMinutes,
+    this.totalBuyAmount = 0.0,
   });
 
   final String symbol;
@@ -124,6 +125,7 @@ class PositionSnapshot {
   final double unrealizedPnl;
   final double unrealizedPnlPct;
   final double holdingMinutes;
+  final double totalBuyAmount;
 
   factory PositionSnapshot.fromJson(Map<String, dynamic> json) =>
       PositionSnapshot(
@@ -136,6 +138,7 @@ class PositionSnapshot {
         unrealizedPnl: asDouble(json['unrealized_pnl']),
         unrealizedPnlPct: asDouble(json['unrealized_pnl_pct']),
         holdingMinutes: asDouble(json['holding_minutes']),
+        totalBuyAmount: asDouble(json['total_buy_amount']),
       );
 }
 

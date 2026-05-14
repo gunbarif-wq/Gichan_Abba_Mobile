@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -551,47 +552,46 @@ class PositionsTableCard extends StatelessWidget {
 
   final List<PositionSnapshot> positions;
 
+  static const _cells = ['종목명', '수량', '평균단가', '매수금액', '현재가', '평가손익', '수익률'];
+  static const _flexes = [30, 10, 18, 18, 18, 18, 10];
+  static const _aligns = [
+    Alignment.centerLeft,
+    Alignment.center,
+    Alignment.center,
+    Alignment.center,
+    Alignment.center,
+    Alignment.center,
+    Alignment.center,
+  ];
+
   @override
   Widget build(BuildContext context) {
     return DashboardPanel(
       title: '보유종목',
-
       child: positions.isEmpty
           ? const EmptyState(text: '미청산 보유 종목이 없습니다.')
           : Column(
               children: [
-                const DataHeader(
-                  cells: ['종목명', '수량', '평균단가', '현재가', '평가손익', '수익률'],
-                  flexes: [22, 8, 13, 13, 15, 10],
-                  alignments: [
-                    Alignment.center,
-                    Alignment.center,
-                    Alignment.center,
-                    Alignment.center,
-                    Alignment.center,
-                    Alignment.center,
-                  ],
-                ),
+                DataHeader(cells: _cells, flexes: _flexes, alignments: _aligns),
                 ...positions.map(
-                  (p) => DataRowLine(
-                    flexes: const [22, 8, 13, 13, 15, 10],
-                    alignments: const [
-                      Alignment.center,
-                      Alignment.center,
-                      Alignment.center,
-                      Alignment.center,
-                      Alignment.center,
-                      Alignment.center,
-                    ],
-                    cells: [
-                      NameText(p.name, p.symbol),
-                      PlainText('${p.quantity}'),
-                      PlainText(price(p.entryPrice)),
-                      PlainText(price(p.currentPrice)),
-                      MoneyText(p.unrealizedPnl),
-                      PercentText(p.unrealizedPnlPct),
-                    ],
-                  ),
+                  (p) {
+                    final buyAmt = p.totalBuyAmount > 0
+                        ? p.totalBuyAmount
+                        : p.entryPrice * p.quantity;
+                    return DataRowLine(
+                      flexes: _flexes,
+                      alignments: _aligns,
+                      cells: [
+                        AutoNameText(p.name),
+                        AutoCellText('${p.quantity}'),
+                        AutoCellText(price(p.entryPrice)),
+                        AutoCellText(price(buyAmt)),
+                        AutoCellText(price(p.currentPrice)),
+                        AutoMoneyText(p.unrealizedPnl),
+                        AutoPercentText(p.unrealizedPnlPct),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -641,10 +641,10 @@ class WatchlistTableCard extends StatelessWidget {
           : Column(
               children: [
                 const DataHeader(
-                  cells: ['종목명', '현재가', '등락률', '상태', '감시 사유'],
-                  flexes: [25, 22, 13, 17, 34],
+                  cells: ['종목명', '현재가', '등락률', '상태', '감시사유'],
+                  flexes: [28, 20, 13, 16, 23],
                   alignments: [
-                    Alignment.center,
+                    Alignment.centerLeft,
                     Alignment.center,
                     Alignment.center,
                     Alignment.center,
@@ -653,7 +653,6 @@ class WatchlistTableCard extends StatelessWidget {
                 ),
                 ...items.map(
                   (item) {
-                    // 상태 뱃지
                     final bool isSell = item.isSellWatch;
                     final statusLabel = isSell ? '매도대기' : '매수대기';
                     final statusColor = isSell ? const Color(0xFFFF6B35) : const Color(0xFF4CAF50);
@@ -664,45 +663,42 @@ class WatchlistTableCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: statusColor, width: 0.7),
                       ),
-                      child: Text(
+                      child: AutoSizeText(
                         statusLabel,
+                        minFontSize: 9,
+                        maxLines: 1,
                         style: TextStyle(fontSize: 9, color: statusColor, fontWeight: FontWeight.w600),
                       ),
                     );
-
-                    // 감시사유: reasons_ko 최대 3개, 없으면 watchReasonText fallback
-                    final reasonLines = item.reasonsKo.isNotEmpty
-                        ? item.reasonsKo.take(3).toList()
-                        : (item.watchReasonText.isNotEmpty
-                            ? item.watchReasonText.split(', ').take(3).toList()
-                            : <String>[]);
-                    final reasonWidget = reasonLines.isEmpty
-                        ? PlainText(item.stageStatus.isNotEmpty ? item.stageStatus : '-')
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: reasonLines
-                                .map((r) => Text(r, style: const TextStyle(color: AppColors.textMain, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center))
-                                .toList(),
-                          );
-
+                    final reasonText = item.reasonsKo.isNotEmpty
+                        ? item.reasonsKo.first
+                        : item.watchReasonText.isNotEmpty
+                            ? item.watchReasonText.split(', ').first
+                            : item.stageStatus;
                     return Container(
                       color: isSell ? const Color(0xFFFF6B35).withOpacity(0.04) : null,
                       child: DataRowLine(
-                        flexes: const [25, 22, 13, 17, 34],
+                        flexes: const [28, 20, 13, 16, 23],
                         alignments: const [
-                          Alignment.center,
+                          Alignment.centerLeft,
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
                         ],
                         cells: [
-                          NameText(item.name, item.symbol),
-                          PlainText(price(item.currentPrice)),
-                          isSell ? PercentText(item.pnlPct) : PercentText(item.changePct),
+                          AutoNameText(item.name),
+                          AutoCellText(price(item.currentPrice)),
+                          isSell ? AutoPercentText(item.pnlPct) : AutoPercentText(item.changePct),
                           Center(child: statusBadge),
-                          Center(child: reasonWidget),
+                          AutoSizeText(
+                            reasonText.isEmpty ? '-' : reasonText,
+                            minFontSize: 9,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.textMain, fontSize: 11),
+                          ),
                         ],
                       ),
                     );
@@ -775,12 +771,12 @@ class RecentClosedTradesCard extends StatelessWidget {
                     flexes: _flexes,
                     alignments: _aligns,
                     cells: [
-                      NameText(trade.name, trade.symbol),
-                      PlainText('${trade.quantity}'),
-                      PlainText(price(trade.buyAmount)),
-                      PlainText(price(trade.sellAmount)),
-                      MoneyText(trade.realizedPnl),
-                      PercentText(trade.realizedPnlPct),
+                      AutoNameText(trade.name),
+                      AutoCellText('${trade.quantity}'),
+                      AutoCellText(price(trade.buyAmount)),
+                      AutoCellText(price(trade.sellAmount)),
+                      AutoMoneyText(trade.realizedPnl),
+                      AutoPercentText(trade.realizedPnlPct),
                     ],
                   ),
                 ),
@@ -1125,6 +1121,65 @@ class NameText extends StatelessWidget {
       ),
     );
   }
+}
+
+class AutoNameText extends StatelessWidget {
+  const AutoNameText(this.name, {super.key});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => AutoSizeText(
+    name.isEmpty ? '-' : name,
+    minFontSize: 9,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(color: Colors.white, fontSize: 10.8, fontWeight: FontWeight.w700),
+  );
+}
+
+class AutoCellText extends StatelessWidget {
+  const AutoCellText(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => AutoSizeText(
+    text,
+    minFontSize: 9,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    textAlign: TextAlign.center,
+    style: const TextStyle(color: AppColors.textMain, fontSize: 11),
+  );
+}
+
+class AutoMoneyText extends StatelessWidget {
+  const AutoMoneyText(this.value, {super.key});
+  final double value;
+
+  @override
+  Widget build(BuildContext context) => AutoSizeText(
+    signedNumber(value),
+    minFontSize: 9,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    textAlign: TextAlign.center,
+    style: TextStyle(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
+  );
+}
+
+class AutoPercentText extends StatelessWidget {
+  const AutoPercentText(this.value, {super.key});
+  final double value;
+
+  @override
+  Widget build(BuildContext context) => AutoSizeText(
+    signedPct(value),
+    minFontSize: 9,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    textAlign: TextAlign.center,
+    style: TextStyle(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
+  );
 }
 
 class PlainText extends StatelessWidget {
