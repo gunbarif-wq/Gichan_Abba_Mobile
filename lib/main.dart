@@ -58,7 +58,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _load();
     if (AppConfig.snapshotSource == SnapshotSource.api) {
       _refreshTimer = Timer.periodic(
-        const Duration(seconds: 5),
+        const Duration(seconds: 3),
         (_) => _load(),
       );
     }
