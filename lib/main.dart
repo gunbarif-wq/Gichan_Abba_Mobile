@@ -771,16 +771,16 @@ class RecentClosedTradesCard extends StatelessWidget {
                   flexes: _flexes,
                   alignments: _aligns,
                 ),
-                ...trades.map((t) => DataRowLine(
+                ..._groupTradeCycles(trades).map((c) => DataRowLine(
                   flexes: _flexes,
                   alignments: _aligns,
                   cells: [
-                    AutoNameText(t.name),
-                    AutoCellText('${t.quantity}'),
-                    t.buyAmount > 0 ? AutoCellText(price(t.buyAmount)) : const AutoCellText('-'),
-                    t.sellAmount > 0 ? AutoCellText(price(t.sellAmount)) : const AutoCellText('-'),
-                    t.sellAmount > 0 ? AutoMoneyText(t.realizedPnl) : const AutoCellText('-'),
-                    t.sellAmount > 0 ? AutoPercentText(t.realizedPnlPct) : const AutoCellText('-'),
+                    AutoNameText(c.name),
+                    AutoCellText('${c.quantity}'),
+                    c.buyAmount > 0 ? AutoCellText(price(c.buyAmount)) : const AutoCellText('-'),
+                    c.sellAmount > 0 ? AutoCellText(price(c.sellAmount)) : const AutoCellText('-'),
+                    c.sellAmount > 0 ? AutoMoneyText(c.realizedPnl) : const AutoCellText('-'),
+                    c.sellAmount > 0 ? AutoPercentText(c.realizedPnlPct) : const AutoCellText('-'),
                   ],
                 )),
               ],
@@ -1409,7 +1409,7 @@ String formatTradingTime(String value) {
   return DateFormat('M/d HH:mm').format(parsed);
 }
 
-class _MergedTrade {
+class _TradeCycle {
   String symbol;
   String name;
   int quantity;
@@ -1418,7 +1418,7 @@ class _MergedTrade {
   double realizedPnl;
   double realizedPnlPct;
 
-  _MergedTrade({
+  _TradeCycle({
     required this.symbol,
     required this.name,
     required this.quantity,
@@ -1429,34 +1429,41 @@ class _MergedTrade {
   });
 }
 
-List<_MergedTrade> _mergeTrades(List<TradeSnapshot> trades) {
-  final Map<String, _MergedTrade> map = {};
-  for (final t in trades) {
-    final m = map.putIfAbsent(
-      t.symbol,
-      () => _MergedTrade(symbol: t.symbol, name: t.name, quantity: t.quantity),
-    );
-    if (t.buyAmount > 0) {
-      m.buyAmount = t.buyAmount;
-      m.quantity = t.quantity;
-      m.name = t.name;
-    }
-    if (t.sellAmount > 0) {
-      m.sellAmount = t.sellAmount;
-      m.realizedPnl = t.realizedPnl;
-      m.realizedPnlPct = t.realizedPnlPct;
-      if (m.quantity == 0) m.quantity = t.quantity;
-      if (m.name.isEmpty) m.name = t.name;
-    }
-    // 단일 레코드에 양쪽 다 있는 경우 (완결 거래)
-    if (t.buyAmount > 0 && t.sellAmount > 0) {
-      m.buyAmount = t.buyAmount;
-      m.sellAmount = t.sellAmount;
-      m.realizedPnl = t.realizedPnl;
-      m.realizedPnlPct = t.realizedPnlPct;
+/// BUY마다 새 사이클 시작, SELL로 사이클 완성 — 매매 완결 단위로 그룹핑
+List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
+  // 시간 오름차순 정렬
+  final sorted = [...trades]..sort((a, b) => a.time.compareTo(b.time));
+  final List<_TradeCycle> result = [];
+  // 심볼별 현재 열린 사이클 (아직 매도 안 된 것)
+  final Map<String, _TradeCycle> open = {};
+
+  for (final t in sorted) {
+    final side = t.side.toUpperCase();
+    if (side == 'BUY') {
+      final cycle = _TradeCycle(
+        symbol: t.symbol, name: t.name, quantity: t.quantity,
+        buyAmount: t.buyAmount,
+      );
+      open[t.symbol] = cycle;
+      result.add(cycle);
+    } else if (side == 'SELL') {
+      final cycle = open.remove(t.symbol);
+      if (cycle != null) {
+        cycle.sellAmount = t.sellAmount;
+        cycle.realizedPnl = t.realizedPnl;
+        cycle.realizedPnlPct = t.realizedPnlPct;
+      } else {
+        // 매수 없이 매도만 있는 경우
+        result.add(_TradeCycle(
+          symbol: t.symbol, name: t.name, quantity: t.quantity,
+          sellAmount: t.sellAmount, realizedPnl: t.realizedPnl,
+          realizedPnlPct: t.realizedPnlPct,
+        ));
+      }
     }
   }
-  return map.values.toList();
+  // 최신 순으로 반환
+  return result.reversed.toList();
 }
 
 Set<String> _lastNTradingDayDates(DateTime ref, int n) {
