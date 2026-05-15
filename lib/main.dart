@@ -378,12 +378,100 @@ class ProfitChart extends StatelessWidget {
         ),
       );
     }
-    final chartItems = items.length > 7
-        ? items.sublist(items.length - 7)
+    const int maxSlots = 7;
+    final chartItems = items.length > maxSlots
+        ? items.sublist(items.length - maxSlots)
         : items;
     final maxAbs = chartItems
         .map((e) => e.pnl.abs())
         .fold<double>(1, (a, b) => a > b ? a : b);
+
+    // 7슬롯 고정: 실제 데이터는 왼쪽부터, 빈 슬롯은 오른쪽
+    Widget buildSlot(DailyPnlSnapshot? bar) {
+      if (bar == null) return const Expanded(child: SizedBox.shrink());
+      final height = 6 + (bar.pnl.abs() / maxAbs * 36);
+      final isProfit = bar.pnl >= 0;
+      return Expanded(
+        child: Column(
+          children: [
+            SizedBox(
+              height: 13,
+              child: Text(
+                isProfit ? signedNumber(bar.pnl) : '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.red,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 72,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: isProfit
+                          ? ChartBar(height: height, color: AppColors.red)
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                  Container(
+                    height: 1,
+                    color: AppColors.border.withValues(alpha: 0.8),
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: !isProfit
+                          ? ChartBar(height: height, color: AppColors.blue)
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 15,
+              child: Text(
+                !isProfit ? signedNumber(bar.pnl) : '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 18,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  chartDateLabel(bar),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final slots = List<DailyPnlSnapshot?>.filled(maxSlots, null);
+    for (var i = 0; i < chartItems.length; i++) {
+      slots[i] = chartItems[i];
+    }
+
     return SizedBox(
       height: 121,
       child: Stack(
@@ -417,90 +505,7 @@ class ProfitChart extends StatelessWidget {
             right: 4,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: chartItems.map((bar) {
-                final height = 6 + (bar.pnl.abs() / maxAbs * 36);
-                final isProfit = bar.pnl >= 0;
-                return Expanded(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 13,
-                        child: Text(
-                          isProfit ? signedNumber(bar.pnl) : '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.red,
-                            fontSize: 7,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 72,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: isProfit
-                                    ? ChartBar(
-                                        height: height,
-                                        color: AppColors.red,
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
-                            ),
-                            Container(
-                              height: 1,
-                              color: AppColors.border.withValues(alpha: 0.8),
-                            ),
-                            Expanded(
-                              child: Align(
-                                alignment: Alignment.topCenter,
-                                child: !isProfit
-                                    ? ChartBar(
-                                        height: height,
-                                        color: AppColors.blue,
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 15,
-                        child: Text(
-                          !isProfit ? signedNumber(bar.pnl) : '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.blue,
-                            fontSize: 7,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 18,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            chartDateLabel(bar),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+              children: slots.map(buildSlot).toList(),
             ),
           ),
         ],
@@ -552,10 +557,10 @@ class PositionsTableCard extends StatelessWidget {
 
   final List<PositionSnapshot> positions;
 
-  static const _cells = ['종목명', '수량', '평균단가', '매수금액', '현재가', '평가손익', '수익률'];
-  static const _flexes = [30, 10, 18, 18, 18, 18, 10];
+  static const _cells = ['종목명', '현재가', '매수가', '수량', '매수금액', '평가손익', '수익률'];
+  static const _flexes = [25, 19, 19, 7, 25, 21, 11];
   static const _aligns = [
-    Alignment.centerLeft,
+    Alignment.center,
     Alignment.center,
     Alignment.center,
     Alignment.center,
@@ -583,10 +588,10 @@ class PositionsTableCard extends StatelessWidget {
                       alignments: _aligns,
                       cells: [
                         AutoNameText(p.name),
-                        AutoCellText('${p.quantity}'),
-                        AutoCellText(price(p.entryPrice)),
-                        AutoCellText(price(buyAmt)),
-                        AutoCellText(price(p.currentPrice)),
+                        _HoldCellText(price(p.currentPrice)),
+                        _HoldCellText(price(p.entryPrice)),
+                        _HoldCellText('${p.quantity}'),
+                        _HoldCellText(price(buyAmt)),
                         AutoMoneyText(p.unrealizedPnl),
                         AutoPercentText(p.unrealizedPnlPct),
                       ],
@@ -642,9 +647,9 @@ class WatchlistTableCard extends StatelessWidget {
               children: [
                 const DataHeader(
                   cells: ['종목명', '현재가', '등락률', '상태', '감시사유'],
-                  flexes: [28, 20, 13, 16, 23],
+                  flexes: [22, 16, 13, 16, 33],
                   alignments: [
-                    Alignment.centerLeft,
+                    Alignment.center,
                     Alignment.center,
                     Alignment.center,
                     Alignment.center,
@@ -678,9 +683,9 @@ class WatchlistTableCard extends StatelessWidget {
                     return Container(
                       color: isSell ? const Color(0xFFFF6B35).withOpacity(0.04) : null,
                       child: DataRowLine(
-                        flexes: const [28, 20, 13, 16, 23],
+                        flexes: const [22, 16, 13, 16, 33],
                         alignments: const [
-                          Alignment.centerLeft,
+                          Alignment.center,
                           Alignment.center,
                           Alignment.center,
                           Alignment.center,
@@ -689,7 +694,7 @@ class WatchlistTableCard extends StatelessWidget {
                         cells: [
                           AutoNameText(item.name),
                           AutoCellText(price(item.currentPrice)),
-                          isSell ? AutoPercentText(item.pnlPct) : AutoPercentText(item.changePct),
+                          AutoPercentText(item.changePct),
                           Center(child: statusBadge),
                           AutoSizeText(
                             reasonText.isEmpty ? '-' : reasonText,
@@ -724,9 +729,9 @@ class RecentClosedTradesCard extends StatelessWidget {
   final bool expanded;
   final VoidCallback? onToggle;
 
-  static const _flexes = [24, 7, 15, 15, 15, 10];
+  static const _flexes = [22, 7, 15, 15, 15, 12];
   static const _aligns = [
-    Alignment.centerLeft,
+    Alignment.center,
     Alignment.center,
     Alignment.center,
     Alignment.center,
@@ -762,20 +767,20 @@ class RecentClosedTradesCard extends StatelessWidget {
           : Column(
               children: [
                 const DataHeader(
-                  cells: ['종목명', '주수', '매수금액', '매도금액', '실현손익', '수익률'],
+                  cells: ['종목명', '수량', '매수금액', '매도금액', '실현손익', '수익률'],
                   flexes: _flexes,
                   alignments: _aligns,
                 ),
-                ..._mergeTrades(trades).map((m) => DataRowLine(
+                ...trades.map((t) => DataRowLine(
                   flexes: _flexes,
                   alignments: _aligns,
                   cells: [
-                    AutoNameText(m.name),
-                    AutoCellText('${m.quantity}'),
-                    m.buyAmount > 0 ? AutoCellText(price(m.buyAmount)) : const AutoCellText('-'),
-                    m.sellAmount > 0 ? AutoCellText(price(m.sellAmount)) : const AutoCellText('-'),
-                    m.sellAmount > 0 ? AutoMoneyText(m.realizedPnl) : const AutoCellText('-'),
-                    m.sellAmount > 0 ? AutoPercentText(m.realizedPnlPct) : const AutoCellText('-'),
+                    AutoNameText(t.name),
+                    AutoCellText('${t.quantity}'),
+                    t.buyAmount > 0 ? AutoCellText(price(t.buyAmount)) : const AutoCellText('-'),
+                    t.sellAmount > 0 ? AutoCellText(price(t.sellAmount)) : const AutoCellText('-'),
+                    t.sellAmount > 0 ? AutoMoneyText(t.realizedPnl) : const AutoCellText('-'),
+                    t.sellAmount > 0 ? AutoPercentText(t.realizedPnlPct) : const AutoCellText('-'),
                   ],
                 )),
               ],
@@ -1031,16 +1036,18 @@ class DataHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final centerAligns = List.filled(cells.length, Alignment.center);
     return DataRowLine(
       isHeader: true,
       flexes: flexes,
-      alignments: alignments,
+      alignments: centerAligns,
       cells: cells
           .map(
             (cell) => Text(
               cell,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppColors.textMuted,
                 fontWeight: FontWeight.w700,
@@ -1128,25 +1135,40 @@ class AutoNameText extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AutoSizeText(
     name.isEmpty ? '-' : name,
-    minFontSize: 9,
+    minFontSize: 6,
     maxLines: 1,
-    overflow: TextOverflow.ellipsis,
+    textAlign: TextAlign.center,
     style: const TextStyle(color: Colors.white, fontSize: 10.8, fontWeight: FontWeight.w700),
   );
 }
 
 class AutoCellText extends StatelessWidget {
-  const AutoCellText(this.text, {super.key});
+  const AutoCellText(this.text, {super.key, this.textAlign = TextAlign.center});
   final String text;
+  final TextAlign textAlign;
 
   @override
   Widget build(BuildContext context) => AutoSizeText(
     text,
     minFontSize: 9,
     maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    textAlign: TextAlign.center,
+    textAlign: textAlign,
     style: const TextStyle(color: AppColors.textMain, fontSize: 11),
+  );
+}
+
+class _HoldCellText extends StatelessWidget {
+  const _HoldCellText(this.text, {this.textAlign = TextAlign.center});
+  final String text;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) => AutoSizeText(
+    text,
+    minFontSize: 6,
+    maxLines: 1,
+    textAlign: textAlign,
+    style: const TextStyle(color: AppColors.textMain, fontSize: 10.8),
   );
 }
 
@@ -1364,8 +1386,9 @@ String chartDateLabel(DailyPnlSnapshot item) {
 }
 
 String todayReturnText(AccountSummary account) {
-  if (account.todayReturnPct == 0 || account.totalAsset == 0) return '+0원';
-  return signedWon(account.totalAsset * account.todayReturnPct / 100);
+  final pnl = account.todayPnl ?? (account.totalAsset * account.todayReturnPct / 100);
+  if (pnl == 0) return '+0원';
+  return signedWon(pnl);
 }
 
 String formatFullTime(String value) {
