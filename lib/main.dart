@@ -597,7 +597,7 @@ class PositionsTableCard extends StatelessWidget {
                       flexes: _flexes,
                       alignments: _aligns,
                       cells: [
-                        AutoNameText('${p.name}${nxtSymbols.contains(p.symbol) ? '(KN)' : '(K)'}'),
+                        AutoNameText('${nxtSymbols.contains(p.symbol) ? '(KN)' : '(K)'}${p.name}'),
                         _HoldCellText(price(p.currentPrice)),
                         _HoldCellText(price(p.entryPrice)),
                         _HoldCellText('${p.quantity}'),
@@ -704,7 +704,7 @@ class WatchlistTableCard extends StatelessWidget {
                           Alignment.center,
                         ],
                         cells: [
-                          AutoNameText('${item.name}${nxtSymbols.contains(item.symbol) ? '(KN)' : '(K)'}'),
+                          AutoNameText('${nxtSymbols.contains(item.symbol) ? '(KN)' : '(K)'}${item.name}'),
                           AutoCellText(price(item.currentPrice)),
                           AutoPercentText(item.changePct),
                           Center(child: statusBadge),
@@ -789,7 +789,7 @@ class RecentClosedTradesCard extends StatelessWidget {
                   flexes: _flexes,
                   alignments: _aligns,
                   cells: [
-                    AutoNameText('${c.name}${nxtSymbols.contains(c.symbol) ? '(KN)' : '(K)'}'),
+                    AutoNameText('${nxtSymbols.contains(c.symbol) ? '(KN)' : '(K)'}${c.name}'),
                     AutoCellText('${c.quantity}'),
                     c.buyAmount > 0 ? AutoCellText(price(c.buyAmount)) : const AutoCellText('-'),
                     c.sellAmount > 0 ? AutoCellText(price(c.sellAmount)) : const AutoCellText('-'),
