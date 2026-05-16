@@ -99,7 +99,7 @@ class SnapshotRepository {
       }
       final response = await http
           .get(uri, headers: headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
       debugPrint(
         '[SnapshotRepository] api_response '
         'url=$uri status_code=${response.statusCode}',

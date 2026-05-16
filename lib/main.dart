@@ -115,13 +115,20 @@ class _DashboardContentState extends State<DashboardContent> {
     final account = snapshot.account;
     final positions = snapshot.positions;
     final refDate = DateTime.tryParse(snapshot.generatedAt) ?? DateTime.now();
-    final recentDates = _lastNTradingDayDates(refDate, 5);
-    final closedTrades = snapshot.recentTrades.where((trade) {
-      if (trade.buyAmount <= 0 && trade.sellAmount <= 0) return false;
-      final parsed = DateTime.tryParse(trade.time);
+    final recentDates = _lastNTradingDayDates(refDate, 2);
+    // SELL 기준 2거래일 필터 + 해당 SELL 종목의 BUY도 매칭용으로 포함
+    final recentSells = snapshot.recentTrades.where((t) {
+      if (t.side.toUpperCase() != 'SELL') return false;
+      if (t.sellAmount <= 0) return false;
+      final parsed = DateTime.tryParse(t.time);
       if (parsed == null) return false;
       return recentDates.contains(DateFormat('yyyy-MM-dd').format(parsed));
     }).toList();
+    final sellSymbols = recentSells.map((t) => t.symbol).toSet();
+    final matchingBuys = snapshot.recentTrades.where((t) =>
+      t.side.toUpperCase() == 'BUY' && sellSymbols.contains(t.symbol) && t.buyAmount > 0
+    ).toList();
+    final closedTrades = [...matchingBuys, ...recentSells];
     final visibleWatchlist = showAllWatchlist
         ? snapshot.watchlist
         : snapshot.watchlist.take(5).toList();
@@ -133,12 +140,13 @@ class _DashboardContentState extends State<DashboardContent> {
         const SizedBox(height: 11),
         AccountInfoCard(account: account, dailyPnls: snapshot.dailyPnls),
         const SizedBox(height: 10),
-        PositionsTableCard(positions: positions),
+        PositionsTableCard(positions: positions, nxtSymbols: snapshot.nxtSymbols),
         const SizedBox(height: 10),
         WatchlistTableCard(
           items: visibleWatchlist,
           totalCount: snapshot.watchlist.length,
           expanded: showAllWatchlist,
+          nxtSymbols: snapshot.nxtSymbols,
           onToggle: snapshot.watchlist.length > 5
               ? () => setState(() => showAllWatchlist = !showAllWatchlist)
               : null,
@@ -148,6 +156,7 @@ class _DashboardContentState extends State<DashboardContent> {
           trades: showAllTrades ? closedTrades : closedTrades.take(5).toList(),
           totalCount: closedTrades.length,
           expanded: showAllTrades,
+          nxtSymbols: snapshot.nxtSymbols,
           onToggle: closedTrades.length > 5
               ? () => setState(() => showAllTrades = !showAllTrades)
               : null,
@@ -553,9 +562,10 @@ class ChartGridPainter extends CustomPainter {
 }
 
 class PositionsTableCard extends StatelessWidget {
-  const PositionsTableCard({super.key, required this.positions});
+  const PositionsTableCard({super.key, required this.positions, this.nxtSymbols = const {}});
 
   final List<PositionSnapshot> positions;
+  final Set<String> nxtSymbols;
 
   static const _cells = ['종목명', '현재가', '매수가', '수량', '매수금액', '평가손익', '수익률'];
   static const _flexes = [25, 19, 19, 7, 25, 21, 11];
@@ -587,7 +597,7 @@ class PositionsTableCard extends StatelessWidget {
                       flexes: _flexes,
                       alignments: _aligns,
                       cells: [
-                        AutoNameText(p.name),
+                        AutoNameText('${p.name}${nxtSymbols.contains(p.symbol) ? '(N)' : '(K)'}'),
                         _HoldCellText(price(p.currentPrice)),
                         _HoldCellText(price(p.entryPrice)),
                         _HoldCellText('${p.quantity}'),
@@ -610,12 +620,14 @@ class WatchlistTableCard extends StatelessWidget {
     required this.items,
     required this.totalCount,
     required this.expanded,
+    this.nxtSymbols = const {},
     this.onToggle,
   });
 
   final List<WatchItem> items;
   final int totalCount;
   final bool expanded;
+  final Set<String> nxtSymbols;
   final VoidCallback? onToggle;
 
   @override
@@ -692,7 +704,7 @@ class WatchlistTableCard extends StatelessWidget {
                           Alignment.center,
                         ],
                         cells: [
-                          AutoNameText(item.name),
+                          AutoNameText('${item.name}${nxtSymbols.contains(item.symbol) ? '(N)' : '(K)'}'),
                           AutoCellText(price(item.currentPrice)),
                           AutoPercentText(item.changePct),
                           Center(child: statusBadge),
@@ -721,12 +733,14 @@ class RecentClosedTradesCard extends StatelessWidget {
     required this.trades,
     required this.totalCount,
     required this.expanded,
+    this.nxtSymbols = const {},
     this.onToggle,
   });
 
   final List<TradeSnapshot> trades;
   final int totalCount;
   final bool expanded;
+  final Set<String> nxtSymbols;
   final VoidCallback? onToggle;
 
   static const _flexes = [22, 7, 15, 15, 15, 12];
@@ -775,7 +789,7 @@ class RecentClosedTradesCard extends StatelessWidget {
                   flexes: _flexes,
                   alignments: _aligns,
                   cells: [
-                    AutoNameText(c.name),
+                    AutoNameText('${c.name}${nxtSymbols.contains(c.symbol) ? '(N)' : '(K)'}'),
                     AutoCellText('${c.quantity}'),
                     c.buyAmount > 0 ? AutoCellText(price(c.buyAmount)) : const AutoCellText('-'),
                     c.sellAmount > 0 ? AutoCellText(price(c.sellAmount)) : const AutoCellText('-'),
@@ -1429,13 +1443,12 @@ class _TradeCycle {
   });
 }
 
-/// BUY마다 새 사이클 시작, SELL로 사이클 완성 — 매매 완결 단위로 그룹핑
+/// BUY마다 새 사이클 시작, SELL로 사이클 완성 — FIFO 방식으로 같은 종목 복수 거래 지원
 List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
-  // 시간 오름차순 정렬
   final sorted = [...trades]..sort((a, b) => a.time.compareTo(b.time));
   final List<_TradeCycle> result = [];
-  // 심볼별 현재 열린 사이클 (아직 매도 안 된 것)
-  final Map<String, _TradeCycle> open = {};
+  // 심볼별 미완성 BUY 사이클 큐 (FIFO)
+  final Map<String, List<_TradeCycle>> open = {};
 
   for (final t in sorted) {
     final side = t.side.toUpperCase();
@@ -1444,16 +1457,18 @@ List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
         symbol: t.symbol, name: t.name, quantity: t.quantity,
         buyAmount: t.buyAmount,
       );
-      open[t.symbol] = cycle;
+      open.putIfAbsent(t.symbol, () => []).add(cycle);
       result.add(cycle);
     } else if (side == 'SELL') {
-      final cycle = open.remove(t.symbol);
-      if (cycle != null) {
+      final queue = open[t.symbol];
+      if (queue != null && queue.isNotEmpty) {
+        // 가장 먼저 매수한 사이클에 매도 결과 채움 (FIFO)
+        final cycle = queue.removeAt(0);
         cycle.sellAmount = t.sellAmount;
         cycle.realizedPnl = t.realizedPnl;
         cycle.realizedPnlPct = t.realizedPnlPct;
       } else {
-        // 매수 없이 매도만 있는 경우
+        // 매수 없이 매도만 있는 경우 (별도 행)
         result.add(_TradeCycle(
           symbol: t.symbol, name: t.name, quantity: t.quantity,
           sellAmount: t.sellAmount, realizedPnl: t.realizedPnl,
@@ -1462,7 +1477,6 @@ List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
       }
     }
   }
-  // 최신 순으로 반환
   return result.reversed.toList();
 }
 

@@ -11,6 +11,7 @@ class AccountSnapshot {
     required this.dailyPnls,
     required this.operationStatus,
     required this.costPolicy,
+    this.nxtSymbols = const {},
   });
 
   final String generatedAt;
@@ -22,6 +23,11 @@ class AccountSnapshot {
   final List<DailyPnlSnapshot> dailyPnls;
   final OperationStatus operationStatus;
   final CostPolicy costPolicy;
+  final Set<String> nxtSymbols;
+
+  bool isNxt(String symbol) => nxtSymbols.contains(symbol);
+
+  String exchangeSuffix(String symbol) => isNxt(symbol) ? '(N)' : '(K)';
 
   factory AccountSnapshot.fromJsonString(String source) {
     return AccountSnapshot.fromJson(jsonDecode(source) as Map<String, dynamic>);
@@ -48,6 +54,9 @@ class AccountSnapshot {
         asMap(json['operation_status']),
       ),
       costPolicy: CostPolicy.fromJson(asMap(json['cost_policy'])),
+      nxtSymbols: {
+        for (final s in asList(json['nxt_symbols'])) s.toString()
+      },
     );
   }
 }
@@ -67,6 +76,7 @@ class AccountSummary {
     required this.winCount,
     required this.lossCount,
     required this.tradingCost,
+    this.todayPnl,
   });
 
   final double totalAsset;
@@ -82,6 +92,7 @@ class AccountSummary {
   final int winCount;
   final int lossCount;
   final double tradingCost;
+  final double? todayPnl;
 
   factory AccountSummary.fromJson(Map<String, dynamic> json) => AccountSummary(
     totalAsset: asDouble(json['total_asset']),
@@ -99,6 +110,7 @@ class AccountSummary {
     winCount: asInt(json['win_count']),
     lossCount: asInt(json['loss_count']),
     tradingCost: asDouble(json['trading_cost']),
+    todayPnl: json['today_pnl'] != null ? asDouble(json['today_pnl']) : null,
   );
 }
 
@@ -180,9 +192,17 @@ class WatchItem {
 
   /// 화면 표시용 감시사유: 서버 display_reason → reasons_ko join → reason fallback 순
   String get watchReasonText {
-    if (displayReason.isNotEmpty) return displayReason;
-    if (reasonsKo.isNotEmpty) return reasonsKo.join(', ');
-    return reason;
+    if (displayReason.isNotEmpty) return _ko(displayReason);
+    if (reasonsKo.isNotEmpty) return reasonsKo.map(_ko).join(', ');
+    return _ko(reason);
+  }
+
+  static String _ko(String s) {
+    switch (s) {
+      case 'holding_position':
+      case 'HOLDING_POSITION': return '보유';
+      default: return s;
+    }
   }
 
   factory WatchItem.fromJson(Map<String, dynamic> json) {
