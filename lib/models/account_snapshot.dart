@@ -27,7 +27,7 @@ class AccountSnapshot {
 
   bool isNxt(String symbol) => nxtSymbols.contains(symbol);
 
-  String exchangeSuffix(String symbol) => isNxt(symbol) ? '(N)' : '(K)';
+  String exchangeSuffix(String symbol) => isNxt(symbol) ? '(KN)' : '(K)';
 
   factory AccountSnapshot.fromJsonString(String source) {
     return AccountSnapshot.fromJson(jsonDecode(source) as Map<String, dynamic>);
