@@ -68,6 +68,12 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_isRefreshing) return;
     _isRefreshing = true;
     try {
+      if (_result == null && AppConfig.snapshotSource == SnapshotSource.api) {
+        final cached = await _repository.loadCached();
+        if (cached != null && mounted) {
+          setState(() => _result = cached);
+        }
+      }
       final result = await _repository.loadWithMetadata();
       if (!mounted) return;
       setState(() => _result = result);

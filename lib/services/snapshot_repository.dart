@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import '../models/account_snapshot.dart';
 
-enum SnapshotLoadSource { mock, api, apiFallbackMock }
+enum SnapshotLoadSource { mock, api, apiFallbackMock, cache }
+
+const _kCacheKey = 'snapshot_cache_json';
 
 class SnapshotLoadResult {
   SnapshotLoadResult({
@@ -30,11 +35,13 @@ class SnapshotLoadResult {
 
   bool get usedApi => source == SnapshotLoadSource.api;
   bool get usedFallback => source == SnapshotLoadSource.apiFallbackMock;
+  bool get usedCache => source == SnapshotLoadSource.cache;
 
   String get sourceLabel => switch (source) {
     SnapshotLoadSource.mock => 'mock',
     SnapshotLoadSource.api => 'api',
     SnapshotLoadSource.apiFallbackMock => 'api -> mock fallback',
+    SnapshotLoadSource.cache => 'cache',
   };
 
   String get configSnapshotSource => AppConfig.snapshotSourceName;
@@ -105,6 +112,7 @@ class SnapshotRepository {
         'url=$uri status_code=${response.statusCode}',
       );
       if (response.statusCode == 200) {
+        unawaited(_saveToCache(response.body));
         return SnapshotLoadResult(
           snapshot: AccountSnapshot.fromJsonString(response.body),
           source: SnapshotLoadSource.api,
@@ -135,6 +143,31 @@ class SnapshotRepository {
             : '${AppConfig.apiBaseUrl}/snapshot/account',
         fetchedAt: DateTime.now(),
       );
+    }
+  }
+
+  Future<SnapshotLoadResult?> loadCached() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString(_kCacheKey);
+      if (json == null || json.isEmpty) return null;
+      return SnapshotLoadResult(
+        snapshot: AccountSnapshot.fromJsonString(json),
+        source: SnapshotLoadSource.cache,
+        fetchedAt: DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint('[SnapshotRepository] cache_load_failed error=$e');
+      return null;
+    }
+  }
+
+  Future<void> _saveToCache(String json) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kCacheKey, json);
+    } catch (e) {
+      debugPrint('[SnapshotRepository] cache_save_failed error=$e');
     }
   }
 
