@@ -76,6 +76,12 @@ class _DashboardPageState extends State<DashboardPage> {
       }
       final result = await _repository.loadWithMetadata();
       if (!mounted) return;
+      // API 모드에서 mock fallback 결과는 캐시가 이미 있으면 표시하지 않음
+      if (AppConfig.snapshotSource == SnapshotSource.api &&
+          result.source == SnapshotLoadSource.apiFallbackMock &&
+          _result != null) {
+        return;
+      }
       setState(() => _result = result);
     } finally {
       _isRefreshing = false;
