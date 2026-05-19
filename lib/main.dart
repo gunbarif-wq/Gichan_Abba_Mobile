@@ -58,7 +58,7 @@ class _DashboardPageState extends State<DashboardPage> {
     _load();
     if (AppConfig.snapshotSource == SnapshotSource.api) {
       _refreshTimer = Timer.periodic(
-        const Duration(seconds: 3),
+        const Duration(seconds: 1),
         (_) => _load(),
       );
     }
@@ -120,21 +120,10 @@ class _DashboardContentState extends State<DashboardContent> {
   Widget build(BuildContext context) {
     final account = snapshot.account;
     final positions = snapshot.positions;
-    final refDate = DateTime.tryParse(snapshot.generatedAt) ?? DateTime.now();
-    final recentDates = _lastNTradingDayDates(refDate, 2);
-    // SELL 기준 2거래일 필터 + 해당 SELL 종목의 BUY도 매칭용으로 포함
-    final recentSells = snapshot.recentTrades.where((t) {
-      if (t.side.toUpperCase() != 'SELL') return false;
-      if (t.sellAmount <= 0) return false;
-      final parsed = DateTime.tryParse(t.time);
-      if (parsed == null) return false;
-      return recentDates.contains(DateFormat('yyyy-MM-dd').format(parsed));
-    }).toList();
-    final sellSymbols = recentSells.map((t) => t.symbol).toSet();
-    final matchingBuys = snapshot.recentTrades.where((t) =>
-      t.side.toUpperCase() == 'BUY' && sellSymbols.contains(t.symbol) && t.buyAmount > 0
+    // 체결내역은 매도 완료 건만 표시 (매수 중복 제거)
+    final closedTrades = snapshot.recentTrades.where((t) =>
+      t.side.toUpperCase() == 'SELL'
     ).toList();
-    final closedTrades = [...matchingBuys, ...recentSells];
     final visibleWatchlist = showAllWatchlist
         ? snapshot.watchlist
         : snapshot.watchlist.take(5).toList();
@@ -1474,9 +1463,10 @@ List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
         cycle.realizedPnl = t.realizedPnl;
         cycle.realizedPnlPct = t.realizedPnlPct;
       } else {
-        // 매수 없이 매도만 있는 경우 (별도 행)
+        // 매수 없이 매도만 있는 경우 — buy_amount 필드에서 직접 복원
         result.add(_TradeCycle(
           symbol: t.symbol, name: t.name, quantity: t.quantity,
+          buyAmount: t.buyAmount,
           sellAmount: t.sellAmount, realizedPnl: t.realizedPnl,
           realizedPnlPct: t.realizedPnlPct,
         ));
@@ -1484,17 +1474,4 @@ List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
     }
   }
   return result.reversed.toList();
-}
-
-Set<String> _lastNTradingDayDates(DateTime ref, int n) {
-  final dates = <String>{};
-  var cursor = DateTime(ref.year, ref.month, ref.day);
-  while (dates.length < n) {
-    if (cursor.weekday != DateTime.saturday &&
-        cursor.weekday != DateTime.sunday) {
-      dates.add(DateFormat('yyyy-MM-dd').format(cursor));
-    }
-    cursor = cursor.subtract(const Duration(days: 1));
-  }
-  return dates;
 }
