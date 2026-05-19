@@ -120,10 +120,10 @@ class _DashboardContentState extends State<DashboardContent> {
   Widget build(BuildContext context) {
     final account = snapshot.account;
     final positions = snapshot.positions;
-    // 체결내역은 매도 완료 건만 표시 (매수 중복 제거)
-    final closedTrades = snapshot.recentTrades.where((t) =>
-      t.side.toUpperCase() == 'SELL'
-    ).toList();
+    // recentTrades 전체(BUY+SELL)로 사이클 매칭 후 매도 완료 건만 표시
+    final closedTrades = _groupTradeCycles(snapshot.recentTrades)
+        .where((c) => c.sellAmount > 0)
+        .toList();
     final visibleWatchlist = showAllWatchlist
         ? snapshot.watchlist
         : snapshot.watchlist.take(5).toList();
@@ -732,7 +732,7 @@ class RecentClosedTradesCard extends StatelessWidget {
     this.onToggle,
   });
 
-  final List<TradeSnapshot> trades;
+  final List<_TradeCycle> trades;
   final int totalCount;
   final bool expanded;
   final Set<String> nxtSymbols;
@@ -780,7 +780,7 @@ class RecentClosedTradesCard extends StatelessWidget {
                   flexes: _flexes,
                   alignments: _aligns,
                 ),
-                ..._groupTradeCycles(trades).map((c) => DataRowLine(
+                ...trades.map((c) => DataRowLine(
                   flexes: _flexes,
                   alignments: _aligns,
                   cells: [
@@ -1116,27 +1116,6 @@ class DataRowLine extends StatelessWidget {
   }
 }
 
-class NameText extends StatelessWidget {
-  const NameText(this.name, this.symbol, {super.key});
-
-  final String name;
-  final String symbol;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      name.isEmpty ? '-' : name,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 10.8,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
 class AutoNameText extends StatelessWidget {
   const AutoNameText(this.name, {super.key});
   final String name;
@@ -1215,59 +1194,6 @@ class AutoPercentText extends StatelessWidget {
       style: base.copyWith(color: valueColor(value), fontWeight: FontWeight.w800, fontSize: 11),
     );
   }
-}
-
-class PlainText extends StatelessWidget {
-  const PlainText(this.text, {super.key, this.maxLines = 1});
-
-  final String text;
-  final int maxLines;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(color: AppColors.textMain, fontSize: 11),
-    );
-  }
-}
-
-class MoneyText extends StatelessWidget {
-  const MoneyText(this.value, {super.key});
-
-  final double value;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    signedNumber(value),
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: TextStyle(
-      color: valueColor(value),
-      fontWeight: FontWeight.w800,
-      fontSize: 11,
-    ),
-  );
-}
-
-class PercentText extends StatelessWidget {
-  const PercentText(this.value, {super.key});
-
-  final double value;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    signedPct(value),
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: TextStyle(
-      color: valueColor(value),
-      fontWeight: FontWeight.w800,
-      fontSize: 11,
-    ),
-  );
 }
 
 class StageBadge extends StatelessWidget {
