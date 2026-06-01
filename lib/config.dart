@@ -9,6 +9,6 @@ class AppConfig {
   static const String snapshotSourceName = 'api';
   static SnapshotSource get snapshotSource => SnapshotSource.api;
 
-  static const String apiBaseUrl = 'http://152.69.237.133:8765';
+  static const String apiBaseUrl = 'http://161.33.39.66:8765';
   static const String apiReadToken = 'gichan-local-dev-8765';
 }
