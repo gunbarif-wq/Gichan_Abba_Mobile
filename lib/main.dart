@@ -141,13 +141,12 @@ class _DashboardContentState extends State<DashboardContent> {
         const SizedBox(height: 11),
         AccountInfoCard(account: account, dailyPnls: snapshot.dailyPnls),
         const SizedBox(height: 10),
-        PositionsTableCard(positions: positions, nxtSymbols: snapshot.nxtSymbols),
+        PositionsTableCard(positions: positions),
         const SizedBox(height: 10),
         WatchlistTableCard(
           items: visibleWatchlist,
           totalCount: snapshot.watchlist.length,
           expanded: showAllWatchlist,
-          nxtSymbols: snapshot.nxtSymbols,
           onToggle: snapshot.watchlist.length > 5
               ? () => setState(() => showAllWatchlist = !showAllWatchlist)
               : null,
@@ -157,7 +156,6 @@ class _DashboardContentState extends State<DashboardContent> {
           trades: showAllTrades ? closedTrades : closedTrades.take(5).toList(),
           totalCount: closedTrades.length,
           expanded: showAllTrades,
-          nxtSymbols: snapshot.nxtSymbols,
           onToggle: closedTrades.length > 5
               ? () => setState(() => showAllTrades = !showAllTrades)
               : null,
@@ -563,10 +561,9 @@ class ChartGridPainter extends CustomPainter {
 }
 
 class PositionsTableCard extends StatelessWidget {
-  const PositionsTableCard({super.key, required this.positions, this.nxtSymbols = const {}});
+  const PositionsTableCard({super.key, required this.positions});
 
   final List<PositionSnapshot> positions;
-  final Set<String> nxtSymbols;
 
   static const _cells = ['종목명', '현재가', '매수가', '수량', '매수금액', '평가손익', '수익률'];
   static const _flexes = [25, 19, 19, 7, 25, 21, 11];
@@ -598,7 +595,7 @@ class PositionsTableCard extends StatelessWidget {
                       flexes: _flexes,
                       alignments: _aligns,
                       cells: [
-                        AutoNameText('${nxtSymbols.contains(p.symbol) ? '(KN)' : '(K)'}${p.name}'),
+                        AutoNameText('${p.exchangeTag}${p.name}'),
                         _HoldCellText(price(p.currentPrice)),
                         _HoldCellText(price(p.entryPrice)),
                         _HoldCellText('${p.quantity}'),
@@ -621,14 +618,12 @@ class WatchlistTableCard extends StatelessWidget {
     required this.items,
     required this.totalCount,
     required this.expanded,
-    this.nxtSymbols = const {},
     this.onToggle,
   });
 
   final List<WatchItem> items;
   final int totalCount;
   final bool expanded;
-  final Set<String> nxtSymbols;
   final VoidCallback? onToggle;
 
   @override
@@ -705,7 +700,7 @@ class WatchlistTableCard extends StatelessWidget {
                           Alignment.center,
                         ],
                         cells: [
-                          AutoNameText('${nxtSymbols.contains(item.symbol) ? '(KN)' : '(K)'}${item.name}'),
+                          AutoNameText('${item.exchangeTag}${item.name}'),
                           AutoCellText(price(item.currentPrice)),
                           AutoPercentText(item.changePct),
                           Center(child: statusBadge),
@@ -734,14 +729,12 @@ class RecentClosedTradesCard extends StatelessWidget {
     required this.trades,
     required this.totalCount,
     required this.expanded,
-    this.nxtSymbols = const {},
     this.onToggle,
   });
 
   final List<_TradeCycle> trades;
   final int totalCount;
   final bool expanded;
-  final Set<String> nxtSymbols;
   final VoidCallback? onToggle;
 
   static const _flexes = [22, 7, 15, 15, 15, 12];
@@ -790,7 +783,7 @@ class RecentClosedTradesCard extends StatelessWidget {
                   flexes: _flexes,
                   alignments: _aligns,
                   cells: [
-                    AutoNameText('${nxtSymbols.contains(c.symbol) ? '(KN)' : '(K)'}${c.name}'),
+                    AutoNameText('${c.exchangeTag}${c.name}'),
                     AutoCellText('${c.quantity}'),
                     c.buyAmount > 0 ? AutoCellText(price(c.buyAmount)) : const AutoCellText('-'),
                     c.sellAmount > 0 ? AutoCellText(price(c.sellAmount)) : const AutoCellText('-'),
@@ -1353,6 +1346,7 @@ String formatTradingTime(String value) {
 class _TradeCycle {
   String symbol;
   String name;
+  String exchangeTag;
   int quantity;
   double buyAmount;
   double sellAmount;
@@ -1362,6 +1356,7 @@ class _TradeCycle {
   _TradeCycle({
     required this.symbol,
     required this.name,
+    this.exchangeTag = '(K)',
     required this.quantity,
     this.buyAmount = 0,
     this.sellAmount = 0,
@@ -1381,24 +1376,22 @@ List<_TradeCycle> _groupTradeCycles(List<TradeSnapshot> trades) {
     final side = t.side.toUpperCase();
     if (side == 'BUY') {
       final cycle = _TradeCycle(
-        symbol: t.symbol, name: t.name, quantity: t.quantity,
-        buyAmount: t.buyAmount,
+        symbol: t.symbol, name: t.name, exchangeTag: t.exchangeTag,
+        quantity: t.quantity, buyAmount: t.buyAmount,
       );
       open.putIfAbsent(t.symbol, () => []).add(cycle);
       result.add(cycle);
     } else if (side == 'SELL') {
       final queue = open[t.symbol];
       if (queue != null && queue.isNotEmpty) {
-        // 가장 먼저 매수한 사이클에 매도 결과 채움 (FIFO)
         final cycle = queue.removeAt(0);
         cycle.sellAmount = t.sellAmount;
         cycle.realizedPnl = t.realizedPnl;
         cycle.realizedPnlPct = t.realizedPnlPct;
       } else {
-        // 매수 없이 매도만 있는 경우 — buy_amount 필드에서 직접 복원
         result.add(_TradeCycle(
-          symbol: t.symbol, name: t.name, quantity: t.quantity,
-          buyAmount: t.buyAmount,
+          symbol: t.symbol, name: t.name, exchangeTag: t.exchangeTag,
+          quantity: t.quantity, buyAmount: t.buyAmount,
           sellAmount: t.sellAmount, realizedPnl: t.realizedPnl,
           realizedPnlPct: t.realizedPnlPct,
         ));

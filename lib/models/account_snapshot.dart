@@ -126,6 +126,7 @@ class PositionSnapshot {
     required this.unrealizedPnlPct,
     required this.holdingMinutes,
     this.totalBuyAmount = 0.0,
+    this.exchangeTag = '(K)',
   });
 
   final String symbol;
@@ -138,6 +139,7 @@ class PositionSnapshot {
   final double unrealizedPnlPct;
   final double holdingMinutes;
   final double totalBuyAmount;
+  final String exchangeTag;
 
   factory PositionSnapshot.fromJson(Map<String, dynamic> json) =>
       PositionSnapshot(
@@ -151,6 +153,7 @@ class PositionSnapshot {
         unrealizedPnlPct: asDouble(json['unrealized_pnl_pct']),
         holdingMinutes: asDouble(json['holding_minutes']),
         totalBuyAmount: asDouble(json['total_buy_amount']),
+        exchangeTag: json['exchange_tag']?.toString() ?? '(K)',
       );
 }
 
@@ -170,6 +173,7 @@ class WatchItem {
     this.peakPnlPct = 0.0,
     this.holdingMinutes = 0.0,
     this.source = '',
+    this.exchangeTag = '(K)',
   });
 
   final String symbol;
@@ -189,6 +193,7 @@ class WatchItem {
   final double peakPnlPct;
   final double holdingMinutes;
   final String source;
+  final String exchangeTag;
 
   /// 화면 표시용 감시사유: 서버 display_reason → reasons_ko join → reason fallback 순
   String get watchReasonText {
@@ -226,6 +231,7 @@ class WatchItem {
       peakPnlPct: asDouble(json['peak_pnl_pct']),
       holdingMinutes: asDouble(json['holding_minutes']),
       source: (json['source'] ?? '').toString(),
+      exchangeTag: json['exchange_tag']?.toString() ?? '(K)',
     );
   }
 }
@@ -242,6 +248,7 @@ class TradeSnapshot {
     required this.realizedPnlPct,
     required this.tradingCost,
     this.side = '',
+    this.exchangeTag = '(K)',
   });
 
   final String time;
@@ -254,6 +261,7 @@ class TradeSnapshot {
   final double realizedPnlPct;
   final double tradingCost;
   final String side; // 'buy' | 'sell' | ''
+  final String exchangeTag;
 
   bool get isBuyOnly => buyAmount > 0 && sellAmount <= 0;
   bool get isSellOnly => sellAmount > 0 && buyAmount <= 0;
@@ -269,6 +277,7 @@ class TradeSnapshot {
     realizedPnlPct: asDouble(json['realized_pnl_pct']),
     tradingCost: asDouble(json['trading_cost']),
     side: (json['side'] ?? '').toString(),
+    exchangeTag: json['exchange_tag']?.toString() ?? '(K)',
   );
 }
 
